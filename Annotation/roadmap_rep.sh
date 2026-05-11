@@ -12,9 +12,9 @@ module load bedtools-2.30
 module load parallel
 module load bcftools-1.21
 
-GI_VCF_DIR="$HOME/TE_work/filtered_vcfs"
-ROADMAP_PATH="/gpfs/data/user/shreyags/TE_work/data/roadmap_anno"
-OUTDIR="$HOME/TE_work/replication_results/annotations/roadmap/GI"
+GI_VCF_DIR="$HOME/TE_work/filtered_vcfs" #these files are also in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Filtered_VCFS
+ROADMAP_PATH="/gpfs/ata/user/shreyags/TE_work/data/roadmap_anno" #these files are also in /gpfs/data/user/shweta_lab/data/databases/roadmap/roadmap_anno_hg38/
+OUTDIR="$HOME/TE_work/replication_results/annotations/roadmap/GI" #results in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Results/RoadmapAnnotation/
 
 mkdir -p "$OUTDIR"
 

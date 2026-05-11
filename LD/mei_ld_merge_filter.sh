@@ -9,12 +9,12 @@
 
 module load bcftools-1.21
 
-LINE1_VCF="$HOME/TE_work/filtered_vcfs/LINE1.filtered.vcf.gz"
-ALU_VCF="$HOME/TE_work/filtered_vcfs/ALU.filtered.vcf.gz"
+LINE1_VCF="$HOME/TE_work/filtered_vcfs/LINE1.filtered.vcf.gz" #these files are also in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Filtered_VCFS
+ALU_VCF="$HOME/TE_work/filtered_vcfs/ALU.filtered.vcf.gz" #these files are also in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Filtered_VCFS
 SVA_VCF="/gpfs/data/user/ruchitha/MELT/CallingMELT/actualrun/scripts/final_vcfs_7478/SVA.final_comp.vcf.gz"
 
-LD_DIR="$HOME/TE_work/replication_results/ld/per_chr"
-OUTDIR="$HOME/TE_work/replication_results/ld"
+LD_DIR="$HOME/TE_work/replication_results/ld/per_chr" #equivalent to /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Results/LD/per_chr
+OUTDIR="$HOME/TE_work/replication_results/ld" #results in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Results/LD/
 
 mkdir -p $OUTDIR
 

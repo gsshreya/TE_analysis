@@ -7,11 +7,11 @@
 #SBATCH -o logs/%x_%j.out
 #SBATCH -e logs/%x_%j.err
 
-cd $HOME/TE_work/replication_results/ld
+cd $HOME/TE_work/replication_results/ld #equivalent to /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Results/LD/
 
 GWAS="gwas_chrpos.txt"
 LD="ld_mei_snp.ld"
-OUTDIR="$HOME/TE_work/replication_results/ld/GWAS"
+OUTDIR="$HOME/TE_work/replication_results/ld/GWAS" #results in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Results/LD/GWAS
 mkdir -p $OUTDIR
 
 for TYPE in ALU LINE1 SVA

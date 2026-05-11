@@ -21,16 +21,16 @@ which gat-run.py >/dev/null || { echo "ERROR: gat-run.py not found"; exit 1; }
 VCFS=(
   "/gpfs/data/user/shreyags/TE_work/filtered_vcfs/LINE1.filtered.vcf.gz"
   "/gpfs/data/user/shreyags/TE_work/filtered_vcfs/ALU.filtered.vcf.gz"
-)
+) #these files are also in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Filtered_VCFS
 
-ROADMAP_DIR="/gpfs/data/user/shreyags/TE_work/data/roadmap_anno"
-GENOME="/gpfs/data/user/shreyags/TE_work/filtered_vcfs/genome.bed"
-OUT_DIR="/gpfs/data/user/shreyags/TE_work/replication_results/annotations/roadmap/enrichment_global_100k"
+ROADMAP_DIR="/gpfs/data/user/shreyags/TE_work/data/roadmap_anno" #these files are also in /gpfs/data/user/shweta_lab/data/databases/roadmap/roadmap_anno_hg38/
+GENOME="/gpfs/data/user/shreyags/TE_work/filtered_vcfs/genome.bed" #this file is also in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Filtered_VCFS
+OUT_DIR="/gpfs/data/user/shreyags/TE_work/replication_results/annotations/roadmap/enrichment_global" #results in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Results/EnrichmentAnalysis/GAT_enrichment/
 
 mkdir -p "$OUT_DIR"
 cd "$OUT_DIR"
 
-ITERS=100000
+ITERS=1000 #can set number of permutations, 1000 iterations takes approximately 6 hours to run
 
 build_freq_beds() {
   local VCF="$1" NAME="$2"

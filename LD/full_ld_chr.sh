@@ -15,7 +15,7 @@ module load plink/1.9.0
 
 VCF="/gpfs/data/user/shweta_lab/data/TE/TE_discovery/Tag_SNPs/Tag_SNPs_7478call/perchr/merged_autosomes.vcf.gz"
 
-OUTDIR="$HOME/TE_work/replication_results/ld"
+OUTDIR="$HOME/TE_work/replication_results/ld/per_chr" #results in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Results/LD/per_chr
 mkdir -p "$OUTDIR"
 cd "$OUTDIR"
 
