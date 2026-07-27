@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=GI_Roadmap
-#SBATCH --partition=cbr_q_large
+#SBATCH --partition=cbr_q_small
 #SBATCH --exclusive
 #SBATCH -c 72
 #SBATCH --nodes=1
-#SBATCH --mem=187G
+#SBATCH --mem=32G
 #SBATCH --output=logs/GI_Roadmap.%j.out
 #SBATCH --error=logs/GI_Roadmap.%j.err
 
@@ -12,13 +12,13 @@ module load bedtools-2.30
 module load parallel
 module load bcftools-1.21
 
-GI_VCF_DIR="$HOME/TE_work/filtered_vcfs" #these files are also in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Filtered_VCFS
-ROADMAP_PATH="/gpfs/ata/user/shreyags/TE_work/data/roadmap_anno" #these files are also in /gpfs/data/user/shweta_lab/data/databases/roadmap/roadmap_anno_hg38/
-OUTDIR="$HOME/TE_work/replication_results/annotations/roadmap/GI" #results in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Results/RoadmapAnnotation/
+GI_VCF_DIR="$HOME/TE_work/filtered_vcfs"
+#GI_VCF_DIR="$HOME/TE_work/filtered_vcfs/common_nosingletons_new_final"
+ROADMAP_PATH="/gpfs/data/user/shreyags/TE_work/data/roadmap_anno"
+OUTDIR="$HOME/TE_work/replication_results/insertions_annotations/roadmap/"
 
 mkdir -p "$OUTDIR"
 
-# MEI TYPES TO PROCESS
 
 MEIS=("ALU" "LINE1")
 
@@ -61,7 +61,7 @@ for MEI in "${MEIS[@]}"; do
   TMPDIR="/gpfs/data/user/$USER/tmp/GI_Roadmap_${MEI}_${SLURM_JOB_ID}"
   mkdir -p "$TMPDIR"
 
-  GI_VCF="${GI_VCF_DIR}/${MEI}.filtered.vcf.gz"
+  GI_VCF="${GI_VCF_DIR}/${MEI}.filtered.final.vcf.gz"
   GI_BED="${TMPDIR}/GI_${MEI}.bed"
 
   echo "Preparing BED for GI ${MEI}"

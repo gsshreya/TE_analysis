@@ -1,134 +1,272 @@
 #!/bin/bash
-#SBATCH --job-name=MEI_tissues_GAT
-#SBATCH -p cbr_q_huge
-#SBATCH -c 16
+#SBATCH --job-name=TE_roadmap_tissue_fisher
+#SBATCH -p cbr_q_small
+#SBATCH -c 8
 #SBATCH --mem=32G
-#SBATCH -t 5-00:00:00
+#SBATCH -t 24:00:00
 #SBATCH -o logs/%x_%j.out
 #SBATCH -e logs/%x_%j.err
 
-
 module load bedtools-2.30
 module load bcftools-1.21
-module load parallel
-module load R
 
 source ~/.bashrc
-conda activate gat_env_py38
+conda activate rnaseq_r
 
-which gat-run.py >/dev/null || { echo "ERROR: gat-run.py not found"; exit 1; }
+mkdir -p logs
 
-VCFS=(
-  "/gpfs/data/user/shreyags/TE_work/filtered_vcfs/LINE1.filtered.vcf.gz"
-  "/gpfs/data/user/shreyags/TE_work/filtered_vcfs/ALU.filtered.vcf.gz"
-) #these files are also in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Filtered_VCFS
+ALU_VCF="$HOME/TE_work/filtered_vcfs/ALU.filtered.final.vcf.gz"
+LINE1_VCF="$HOME/TE_work/filtered_vcfs/LINE1.filtered.final.vcf.gz"
 
-ROADMAP_DIR="/gpfs/data/user/shreyags/TE_work/data/roadmap_anno" #these files are also in /gpfs/data/user/shweta_lab/data/databases/roadmap/roadmap_anno_hg38/
-GENOME="/gpfs/data/user/shreyags/TE_work/filtered_vcfs/genome.bed" #this file is also in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Filtered_VCFS
-OUT_DIR="/gpfs/data/user/shreyags/TE_work/replication_results/annotations/roadmap/enrichment_global" #results in /gpfs/data/user/shweta_lab/data/TE/TE_discovery/Jan_May_2026/Results/EnrichmentAnalysis/GAT_enrichment/
+ROADMAP_DIR="/gpfs/data/user/shreyags/TE_work/data/roadmap_anno"
+METADATA="/gpfs/data/user/shreyags/TE_work/filtered_vcfs/EID_roadmap_metadata.tab"
+GENOME="/gpfs/data/user/shreyags/TE_work/filtered_vcfs/genome.bed"
+OUTDIR="/gpfs/data/user/shreyags/TE_work/replication_results/new_enrichment/insertions/all"
 
-mkdir -p "$OUT_DIR"
-cd "$OUT_DIR"
+mkdir -p "$OUTDIR"
 
-ITERS=1000 #can set number of permutations, 1000 iterations takes approximately 6 hours to run
+genome_bp=$(awk '{s+=($3-$2)} END{print s+0}' "$GENOME")
 
-build_freq_beds() {
-  local VCF="$1" NAME="$2"
+declare -A TISSUES
 
-  bcftools view -f PASS "$VCF" \
-    | bcftools +fill-tags -- -t AF \
-    | bcftools query -f '%CHROM\t%POS\t%INFO/AF\n' \
-    | awk '$1 ~ /^chr/ {print $1"\t"$2-1"\t"$2"\t"$3}' \
-    > "${NAME}_all_with_af.bed"
+while IFS=$'\t' read -r eid group color mnemonic std_name edacc_name anatomy type age sex solid ethnicity donor
+do
+    [[ "$eid" == "EID" ]] && continue
+    TISSUES["$eid"]="$anatomy"
+done < "$METADATA"
 
-  awk '{print $1"\t"$2"\t"$3}'               "${NAME}_all_with_af.bed" > "${NAME}.all.bed"
-  awk '$4 > 0.01 {print $1"\t"$2"\t"$3}'     "${NAME}_all_with_af.bed" > "${NAME}.common.bed"
+PROMOTER='^(1_TssA|2_TssAFlnk|10_TssBiv)$'
+ENHANCER='^(6_EnhG|7_Enh|12_EnhBiv)$'
+TRANSCRIBED='^(3_TxFlnk|4_Tx|5_TxWk)$'
+REPRESSED='^(9_Het|13_ReprPC|14_ReprPCWk)$'
+ACTIVE='^(1_TssA|2_TssAFlnk|3_TxFlnk|4_Tx|5_TxWk|6_EnhG|7_Enh|10_TssBiv|12_EnhBiv)$'
 
-  rm -f "${NAME}_all_with_af.bed"
+run_category() {
+
+    NAME=$1
+    REGEX=$2
+    INS_BED=$3
+    TE=$4
+    TE_OUTDIR=$5
+
+    COUNTS="${TE_OUTDIR}/${NAME}_counts.tsv"
+
+    echo -e "tissue_id\ttissue_name\tfunctional_bp\tnonfunctional_bp\tinsertions_functional\tinsertions_nonfunctional\tnoninsertions_functional\tnoninsertions_nonfunctional\ttotal_insertions" > "$COUNTS"
+
+    echo
+    echo "${TE} : ${NAME}"
+
+    for ANNO in ${ROADMAP_DIR}/E*_15_coreMarks_hg38lift_dense.bed.gz
+    do
+
+        tissue=$(basename "$ANNO" _15_coreMarks_hg38lift_dense.bed.gz)
+        tissue_name="${TISSUES[$tissue]}"
+
+        if [ -z "$tissue_name" ]; then
+            tissue_name="UNKNOWN"
+        fi
+
+        BED="${TE_OUTDIR}/${tissue}.${NAME}.bed"
+
+        echo "  ${tissue} (${tissue_name})"
+
+        gzip -dc "$ANNO" |
+        awk -v pat="$REGEX" '
+            BEGIN{OFS="\t"}
+            $1~/^chr/ && $4 ~ pat {
+                print $1,$2,$3
+            }
+        ' |
+        sort -k1,1 -k2,2n |
+        bedtools merge -i - \
+        > "$BED"
+
+        functional_bp=$(awk '{s+=($3-$2)} END{print s+0}' "$BED")
+        nonfunctional_bp=$((genome_bp - functional_bp))
+
+        insertions_functional=$(bedtools intersect \
+            -a "$INS_BED" \
+            -b "$BED" \
+            -u | wc -l)
+
+        total_insertions=$(wc -l < "$INS_BED")
+        insertions_nonfunctional=$((total_insertions - insertions_functional))
+        noninsertions_functional=$((functional_bp - insertions_functional))
+        noninsertions_nonfunctional=$((nonfunctional_bp - insertions_nonfunctional))
+
+        echo -e "${tissue}\t${tissue_name}\t${functional_bp}\t${nonfunctional_bp}\t${insertions_functional}\t${insertions_nonfunctional}\t${noninsertions_functional}\t${noninsertions_nonfunctional}\t${total_insertions}" \
+            >> "$COUNTS"
+
+        rm -f "$BED"
+
+    done
+
+    Rscript - "$COUNTS" "${TE_OUTDIR}/${NAME}.tsv" << 'EOF'
+
+args <- commandArgs(trailingOnly=TRUE)
+
+infile  <- args[1]
+outfile <- args[2]
+
+x <- read.delim(infile, stringsAsFactors=FALSE)
+
+for(col in c(
+    "functional_bp",
+    "nonfunctional_bp",
+    "insertions_functional",
+    "insertions_nonfunctional",
+    "total_insertions"
+)){
+    x[[col]] <- as.numeric(x[[col]])
 }
 
-process_tissue_freq() {
-  local ID="$1" FREQCLASS="$2" NAME="$3"
+res_list <- vector("list", nrow(x))
 
-  local SEGFILE="${OUT_DIR}/${NAME}.${FREQCLASS}.bed"
-  local ANNO_FILE="${ROADMAP_DIR}/${ID}_15_coreMarks_hg38lift_dense.bed.gz"
-  local GTMPDIR="${OUT_DIR}/tmp_${NAME}_${ID}_${FREQCLASS}"
+SCALE_FACTOR <- 1000
+THRESHOLD    <- 1e8
 
-  [[ ! -s "$SEGFILE" ]] && return
-  [[ ! -f "$ANNO_FILE" ]] && return
+for(i in seq_len(nrow(x))) {
 
-  mkdir -p "$GTMPDIR"
+    row <- x[i,]
 
-  local ANNO_BED="$GTMPDIR/anno.bed"
+    A <- row$insertions_functional
+    B <- row$total_insertions - row$insertions_functional
 
-  # annotations building
-  gzip -dc "$ANNO_FILE" \
-    | awk '{print $1"\t"$2"\t"$3"\t"$4}' \
-    | sort -k1,1 -k2,2n \
-    | awk '
-      {
-        key=$4
-        if (NR==1 || key!=prev_key || $1!=prev_chr || $2>prev_end) {
-          if (NR>1) print prev_chr"\t"prev_start"\t"prev_end"\t"prev_key
-          prev_chr=$1; prev_start=$2; prev_end=$3; prev_key=key
-        } else {
-          if ($3>prev_end) prev_end=$3
-        }
-      }
-      END {
-        if (NR>0) print prev_chr"\t"prev_start"\t"prev_end"\t"prev_key
-      }
-    ' > "$ANNO_BED"
+    C <- row$functional_bp
+    D <- row$nonfunctional_bp
 
-  # skip if annotation empty
-  [[ ! -s "$ANNO_BED" ]] && return
+    # Only rescale C and D if they're large enough to risk exceeding
+    # .Machine$integer.max (~2.1 billion)
+    if (C > THRESHOLD || D > THRESHOLD) {
+        C_scaled <- max(1, round(C / SCALE_FACTOR))
+        D_scaled <- max(1, round(D / SCALE_FACTOR))
+    } else {
+        C_scaled <- C
+        D_scaled <- D
+    }
 
-  gat-run.py \
-    --segments="$SEGFILE" \
-    --annotations="$ANNO_BED" \
-    --workspace="$GENOME" \
-    --num-samples=$ITERS \
-    --ignore-segment-tracks \
-    > "$GTMPDIR/out.tsv" \
-    2> "$GTMPDIR/gat.err"
+    mat <- matrix(
+        c(A, B, C_scaled, D_scaled),
+        nrow=2,
+        byrow=TRUE
+    )
 
-  [[ ! -s "$GTMPDIR/out.tsv" ]] && return
+    ft <- tryCatch(
+        fisher.test(mat),
+        error=function(e)
+            list(
+                estimate=NA,
+                conf.int=c(NA,NA),
+                p.value=NA
+            )
+    )
 
-  {
-    flock 200
-    awk -v tissue="$ID" \
-      'NR>1 {print tissue"\t"$2"\t"$3"\t"$4"\t"$8"\t"$9"\t"$10"\t"$11}' \
-      "$GTMPDIR/out.tsv" \
-      >> "${OUT_DIR}/${NAME}_${FREQCLASS}.tsv"
-  } 200>"${OUT_DIR}/${NAME}_${FREQCLASS}.lock"
+    res_list[[i]] <- data.frame(
+
+        tissue_id   = row$tissue_id,
+        tissue_name = row$tissue_name,
+
+        functional_bp    = row$functional_bp,
+        nonfunctional_bp = row$nonfunctional_bp,
+
+        total_insertions = row$total_insertions,
+
+        insertions_functional    = row$insertions_functional,
+        insertions_nonfunctional = row$insertions_nonfunctional,
+
+        A = A,
+        B = B,
+        C = C,
+        D = D,
+
+        C_scaled = C_scaled,
+        D_scaled = D_scaled,
+
+        prop_genome =
+            row$functional_bp /
+            (row$functional_bp + row$nonfunctional_bp),
+
+        prop_insertions =
+            row$insertions_functional /
+            row$total_insertions,
+
+        odds_ratio = unname(ft$estimate),
+        ci_lower   = ft$conf.int[1],
+        ci_upper   = ft$conf.int[2],
+        pvalue     = ft$p.value,
+
+        stringsAsFactors=FALSE
+    )
 }
 
-export -f process_tissue_freq
-export ROADMAP_DIR GENOME OUT_DIR ITERS
+results <- do.call(rbind, res_list)
 
-find "$ROADMAP_DIR" -name "*_15_coreMarks_hg38lift_dense.bed.gz" \
-  | sed 's#.*/##;s/_15_coreMarks_hg38lift_dense.bed.gz//' \
-  | sort > tissues.list
+results$FDR <- p.adjust(
+    results$pvalue,
+    method="BH"
+)
 
-for VCF in "${VCFS[@]}"; do
+results <- results[order(results$pvalue),]
 
-  NAME=$(basename "$VCF" .vcf.gz)
+write.table(
+    results,
+    outfile,
+    sep="\t",
+    quote=FALSE,
+    row.names=FALSE
+)
 
-  build_freq_beds "$VCF" "$NAME"
+cat("\nSaved:", outfile, "\n")
 
-  for fc in all common; do
-    echo -e "Tissue\tCategory\tObserved\tExpected\tFold\tlog2Fold\tPvalue\tQvalue_GAT" \
-      > "${OUT_DIR}/${NAME}_${fc}.tsv"
-  done
+EOF
 
-  parallel -j 12 \
-    process_tissue_freq {1} {2} "$NAME" \
-    :::: tissues.list \
-    ::: all common
+    rm -f "$COUNTS"
 
-  rm -f ${OUT_DIR}/${NAME}_*.lock
-  rm -rf ${OUT_DIR}/tmp_${NAME}_*
+}
 
-done
+run_analysis() {
 
-ls ${OUT_DIR}/*.tsv
+    TE=$1
+    VCF=$2
+
+    TE_OUTDIR="${OUTDIR}/${TE}"
+    mkdir -p "$TE_OUTDIR"
+
+    INS_BED="${TE_OUTDIR}/${TE}.insertions.bed"
+
+    echo
+    echo "Building insertion BED for ${TE}"
+
+    bcftools query -f '%CHROM\t%POS\n' "$VCF" |
+    awk 'BEGIN{OFS="\t"} $1~/^chr/ {print $1,$2-1,$2}' |
+    sort -k1,1 -k2,2n \
+    > "$INS_BED"
+
+    run_category "promoters"   "$PROMOTER"    "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "enhancers"   "$ENHANCER"    "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "transcribed" "$TRANSCRIBED" "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "repressed"   "$REPRESSED"   "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "active"      "$ACTIVE"      "$INS_BED" "$TE" "$TE_OUTDIR"
+
+    run_category "1_TssA"      '^1_TssA$'      "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "2_TssAFlnk"  '^2_TssAFlnk$'  "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "3_TxFlnk"    '^3_TxFlnk$'    "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "4_Tx"        '^4_Tx$'        "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "5_TxWk"      '^5_TxWk$'      "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "6_EnhG"      '^6_EnhG$'      "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "7_Enh"       '^7_Enh$'       "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "8_ZNF_Rpts"  '^8_ZNF/Rpts$'  "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "9_Het"       '^9_Het$'       "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "10_TssBiv"   '^10_TssBiv$'   "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "11_BivFlnk"  '^11_BivFlnk$'  "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "12_EnhBiv"   '^12_EnhBiv$'   "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "13_ReprPC"   '^13_ReprPC$'   "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "14_ReprPCWk" '^14_ReprPCWk$' "$INS_BED" "$TE" "$TE_OUTDIR"
+    run_category "15_Quies"    '^15_Quies$'    "$INS_BED" "$TE" "$TE_OUTDIR"
+}
+
+run_analysis "ALU"   "$ALU_VCF"
+run_analysis "LINE1" "$LINE1_VCF"
+
+echo
+echo "DONE"
