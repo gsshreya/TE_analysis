@@ -1,5 +1,7 @@
 # TE_analysis
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21615045.svg)](https://doi.org/10.5281/zenodo.21615045)
+
 Scripts and notebooks for our transposable element (TE) analysis, as described in the associated manuscript.
 
 ## MELT_Insertion_Calling/
@@ -37,6 +39,16 @@ MELT-based TE insertion calling pipeline, in order:
 - `ins_snps_ld.sh` : computes linkage disequilibrium between TE insertions and SNPs (pruned, merged VCF, PLINK LD).
 - `GWAS_Associations_Final.ipynb` : Finding MEIs in LD with GWAS SNPs 
 - `eQTL_Analysis_Final.ipynb` : Finding MEIs in LD with eQTLs and determining functional variants i.e. TE eQTLs, LD with eQTLs, LD with GWAS SNPs with differing AFs in 82 populations
+
+## Exonic_TE/
+- `exonic_TE_analysis.ipynb` : Annotates the functional region that each TE lies in and then filters out TE insertions falling in exonic regions. Filters exonic TE for further analysis.
+- `CABYR_founder_analysis.py` : For the identified 6 carriers of insertion in gene CABYR, caculates haplotype level sharing in +/- 500 kb around the insertion breakpoint.
+
+
+## Figures/
+- 'fig_style.py': Style guides for figures generated for the manuscript.
+- 'fig1.py': Used to generate figures 1A, 1B, 1C and 1D
+- 'fig4_pca.py': Used to generate figures 4B and S9B
 
 ## Deletions/
 - `melt_deletion.sh` : MELT indivudal deletion calling.
