@@ -37,7 +37,8 @@ MELT-based TE insertion calling pipeline, in order:
 
 ## GWAS_and_eQTL_Analysis/
 - `ins_snps_ld.sh` : computes linkage disequilibrium between TE insertions and SNPs (pruned, merged VCF, PLINK LD).
-- `GWAS_Associations_Final.ipynb` : Finding MEIs in LD with GWAS SNPs 
+- `GWAS_Associations_Final.ipynb` : Finding MEIs in LD with GWAS SNPs
+- `eqtlscomparison_july2026.R` : Overlpping MEIs from this study with those found TE eQTLs found in GTEx
 - `eQTL_Analysis_Final.ipynb` : Finding MEIs in LD with eQTLs and determining functional variants i.e. TE eQTLs, LD with eQTLs, LD with GWAS SNPs with differing AFs in 82 populations
 
 ## Exonic_TE/
