@@ -1,5 +1,7 @@
 # TE_analysis
 
+[![DOI](https://zenodo.org/badge/1232861831.svg)](https://doi.org/10.5281/zenodo.21615044)
+
 Scripts and notebooks for our transposable element (TE) analysis, as described in the associated manuscript.
 
 ## MELT_Insertion_Calling/
